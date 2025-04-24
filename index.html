@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ammo Inventory Tracker</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 1em;
+      background: #f9f9f9;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      font-size: 1.5em;
+    }
+    .ammo-item {
+      background: #fff;
+      padding: 1em;
+      margin-bottom: 1em;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    .ammo-item h2 {
+      font-size: 1.2em;
+      margin: 0 0 0.5em;
+    }
+    .ammo-item p {
+      margin: 0.5em 0;
+    }
+    .ammo-item .count {
+      font-weight: bold;
+    }
+    .ammo-item .low {
+      color: red;               /* highlight low stock in red */
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5em;
+      align-items: center;
+      margin: 0.5em 0;
+    }
+    .controls input[type="number"] {
+      width: 60px;
+      padding: 0.2em;
+    }
+    .controls button {
+      padding: 0.4em 0.8em;
+      font-size: 1em;
+    }
+    #threshold-config {
+      background: #eef;
+      padding: 0.8em;
+      border: 1px solid #ccd;
+      border-radius: 6px;
+    }
+    #threshold-config input {
+      width: 80px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Ammo Inventory Tracker</h1>
+
+  <div class="ammo-item" id="ammo-Federal9">
+    <h2>9mm Federal Punch</h2>
+    <p>Current stock: <span class="count" id="count-Federal9">0</span> rounds</p>
+    <div class="controls">
+      <label>Use: <input type="number" id="use-Federal9" value="0" min="0"></label>
+      <button onclick="logUsage('Federal9')">Log Used</button>
+      <label>Add: <input type="number" id="add-Federal9" value="0" min="0"></label>
+      <button onclick="addStock('Federal9')">Add Received</button>
+    </div>
+    <p><a href="https://www.targetsportsusa.com/federal-punch-9mm-luger-ammo-124-grain-jhp-pd9p1-p-110237.aspx" target="_blank">Buy More</a></p>
+  </div>
+
+  <div class="ammo-item" id="ammo-Blazer9">
+    <h2>9mm Blazer Brass</h2>
+    <p>Current stock: <span class="count" id="count-Blazer9">0</span> rounds</p>
+    <div class="controls">
+      <label>Use: <input type="number" id="use-Blazer9" value="0" min="0"></label>
+      <button onclick="logUsage('Blazer9')">Log Used</button>
+      <label>Add: <input type="number" id="add-Blazer9" value="0" min="0"></label>
+      <button onclick="addStock('Blazer9')">Add Received</button>
+    </div>
+    <p><a href="https://www.targetsportsusa.com/cci-blazer-brass-9mm-luger-ammo-115-grain-full-metal-jacket-5200-p-1008.aspx" target="_blank">Buy More</a></p>
+  </div>
+
+  <div class="ammo-item" id="ammo-XM193">
+    <h2>5.56 XM193</h2>
+    <p>Current stock: <span class="count" id="count-XM193">0</span> rounds</p>
+    <div class="controls">
+      <label>Use: <input type="number" id="use-XM193" value="0" min="0"></label>
+      <button onclick="logUsage('XM193')">Log Used</button>
+      <label>Add: <input type="number" id="add-XM193" value="0" min="0"></label>
+      <button onclick="addStock('XM193')">Add Received</button>
+    </div>
+    <p><a href="https://www.targetsportsusa.com/federal-lake-city-556x45mm-nato-xm193-ammo-55-grain-full-metal-jacket-boat-tail-xm193-p-771.aspx" target="_blank">Buy More</a></p>
+  </div>
+
+  <div class="ammo-item" id="ammo-Frontier556">
+    <h2>5.56 Frontier</h2>
+    <p>Current stock: <span class="count" id="count-Frontier556">0</span> rounds</p>
+    <div class="controls">
+      <label>Use: <input type="number" id="use-Frontier556" value="0" min="0"></label>
+      <button onclick="logUsage('Frontier556')">Log Used</button>
+      <label>Add: <input type="number" id="add-Frontier556" value="0" min="0"></label>
+      <button onclick="addStock('Frontier556')">Add Received</button>
+    </div>
+    <p><a href="https://www.targetsportsusa.com/hornady-frontier-556-mm-xm193-ammo-55-grain-fmj-fr2005-p-110157.aspx" target="_blank">Buy More</a></p>
+  </div>
+
+  <div id="threshold-config">
+    Low stock threshold: <input type="number" id="thresholdInput" value="300" min="0"> rounds
+  </div>
+
+  <script>
+    // Inventory data object mapping keys to ammo names (and optional link if needed)
+    const ammoData = {
+      Federal9:   { name: "9mm Federal Punch" },
+      Blazer9:    { name: "9mm Blazer Brass" },
+      XM193:      { name: "5.56 XM193" },
+      Frontier556:{ name: "5.56 Frontier" }
+    };
+
+    // Load stored counts from localStorage, or default to 0
+    for (let key in ammoData) {
+      if (ammoData.hasOwnProperty(key)) {
+        let storedValue = localStorage.getItem("ammo_" + key);
+        let count = storedValue !== null ? parseInt(storedValue) : 0;
+        if (isNaN(count) || count < 0) count = 0;
+        ammoData[key].count = count;
+        // Display initial count
+        document.getElementById("count-" + key).innerText = count;
+      }
+    }
+
+    // Load threshold from storage or use default 300
+    let threshold = localStorage.getItem("ammo_threshold");
+    if (threshold !== null) {
+      threshold = parseInt(threshold);
+      if (isNaN(threshold) || threshold < 0) threshold = 300;
+    } else {
+      threshold = 300;
+    }
+    // Set the threshold input to the loaded value
+    const thresholdInput = document.getElementById("thresholdInput");
+    thresholdInput.value = threshold;
+    
+    // Helper: update the "low stock" highlighting for all ammo types
+    function updateLowStockIndicators() {
+      for (let key in ammoData) {
+        if (ammoData.hasOwnProperty(key)) {
+          const countSpan = document.getElementById("count-" + key);
+          if (ammoData[key].count < threshold) {
+            countSpan.classList.add("low");
+          } else {
+            countSpan.classList.remove("low");
+          }
+        }
+      }
+    }
+    
+    // Initial highlight update on load
+    updateLowStockIndicators();
+
+    // Event: changing the threshold value
+    thresholdInput.addEventListener("change", function() {
+      let newTh = parseInt(this.value);
+      if (isNaN(newTh) || newTh < 0) {
+        newTh = 0;
+      }
+      threshold = newTh;
+      localStorage.setItem("ammo_threshold", threshold);
+      updateLowStockIndicators();  // refresh indicators based on new threshold
+    });
+
+    // Function to log (subtract) used rounds for a given ammo type
+    function logUsage(key) {
+      const inputEl = document.getElementById("use-" + key);
+      let amount = parseInt(inputEl.value);
+      if (isNaN(amount) || amount <= 0) {
+        // nothing to subtract
+        inputEl.value = 0;
+        return;
+      }
+      let currentCount = ammoData[key].count;
+      let newCount = currentCount - amount;
+      if (newCount < 0) {
+        // If more rounds used than available, set to 0 and alert the user
+        newCount = 0;
+        alert("You tried to use more rounds than available for " + ammoData[key].name + ". Inventory is now 0.");
+      }
+      ammoData[key].count = newCount;
+      // Update display and storage
+      document.getElementById("count-" + key).innerText = newCount;
+      localStorage.setItem("ammo_" + key, newCount);
+      // Check for low stock alert
+      if (currentCount >= threshold && newCount < threshold) {
+        // Only alert when crossing below threshold
+        alert(ammoData[key].name + " stock dropped below the threshold (" + threshold + ")!");
+      }
+      // Update low-stock highlighting
+      updateLowStockIndicators();
+      // Reset the input field to 0 for convenience
+      inputEl.value = 0;
+    }
+
+    // Function to add received rounds for a given ammo type
+    function addStock(key) {
+      const inputEl = document.getElementById("add-" + key);
+      let amount = parseInt(inputEl.value);
+      if (isNaN(amount) || amount <= 0) {
+        inputEl.value = 0;
+        return;
+      }
+      let currentCount = ammoData[key].count;
+      let newCount = currentCount + amount;
+      ammoData[key].count = newCount;
+      // Update display and storage
+      document.getElementById("count-" + key).innerText = newCount;
+      localStorage.setItem("ammo_" + key, newCount);
+      // (No alert on adding stock, since it's not a drop below threshold event)
+      updateLowStockIndicators();
+      inputEl.value = 0;
+    }
+  </script>
+
+</body>
+</html>
